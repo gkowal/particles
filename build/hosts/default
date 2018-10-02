@@ -1,0 +1,138 @@
+#-------------------------------------------------------------------------------
+#
+# Compilation flags depend on variable COMPILER set in make.default or
+# make.config. This variable indicates which compiler family should be used.
+# Currently, we support GNU, PGI and INTEL compilers. If you need support
+# for a different compiler, please add corresponding section below.
+#
+#-------------------------------------------------------------------------------
+#
+# GNU Fortran compiler
+#
+ifeq ($(COMPILER), GNU)
+
+# compiler and linker setup
+#
+ifeq ($(MPI),Y)
+FC        = mpifort
+else
+FC        = gfortran
+endif
+LD        = $(FC)
+
+# compiler and linker flags
+#
+ifeq ($(DEBUG),Y)
+FFLAGS    = -Og -g -DDEBUG
+else
+FFLAGS    = -O2 -march=native -pipe
+endif
+ifeq ($(PROFILE),Y)
+FFLAGS   += -pg
+endif
+LDFLAGS   = $(FFLAGS)
+ifeq ($(STATIC),Y)
+LDFLAGS  += -static
+endif
+
+endif
+
+#-------------------------------------------------------------------------------
+#
+# PGI Fortran compiler
+#
+ifeq ($(COMPILER), PGI)
+
+# compiler and linker setup
+#
+ifeq ($(MPI),Y)
+FC        = mpifort
+else
+FC        = pgfortran
+endif
+LD        = $(FC)
+
+# compiler and linker flags
+#
+ifeq ($(DEBUG),Y)
+FFLAGS    = -O -g -DDEBUG
+else
+FFLAGS    = -fast
+endif
+ifeq ($(PROFILE),Y)
+FFLAGS   += -Mprof=dwarf
+endif
+LDFLAGS   = $(FFLAGS)
+ifeq ($(STATIC),Y)
+LDFLAGS  += -Bstatic
+endif
+
+endif
+
+#-------------------------------------------------------------------------------
+#
+# INTEL Fortran compiler
+#
+ifeq ($(COMPILER), INTEL)
+
+# compiler and linker setup
+#
+ifeq ($(MPI),Y)
+FC        = mpifort
+else
+FC        = ifort
+endif
+LD        = $(FC)
+
+# compiler and linker flags
+#
+ifeq ($(DEBUG),Y)
+FFLAGS    = -O -g -DDEBUG
+else
+FFLAGS    = -O2 -xHost
+endif
+ifeq ($(PROFILE),Y)
+FFLAGS   += -p
+endif
+LDFLAGS   = $(FFLAGS)
+ifeq ($(STATIC),Y)
+LDFLAGS  += -static
+endif
+
+endif
+
+#-------------------------------------------------------------------------------
+#
+# Additional common directives set in make.config
+#
+
+ifeq ($(SIGNALS),Y)
+FFLAGS   += -DSIGNALS
+endif
+
+ifeq ($(MPI),Y)
+FFLAGS   += -DMPI
+endif
+
+#-------------------------------------------------------------------------------
+#
+# libraries and their dependencies
+#
+LIBS      =
+
+# if your HDF5 libraries not are installed in the standard location /usr,
+# you can set this path using the HDF5DIR variable here
+#
+#HDF5DIR=/home/user/hdf5
+
+ifeq ($(OUTPUT),HDF5)
+ifeq ($(HDF5DIR),)
+FFLAGS   += -I/usr/include
+else
+FFLAGS   += -I$(HDF5DIR)/include
+LIBS     += -L$(HDF5DIR)/lib
+endif
+LIBS     += -lhdf5_fortran -lhdf5
+endif
+#
+#-------------------------------------------------------------------------------
