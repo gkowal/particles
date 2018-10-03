@@ -74,7 +74,8 @@ program particles
                                                'momx', 'momy', 'momz' /)
 
   character(len=32) :: fname, stmp
-  integer           :: n, i, iret
+  integer           :: i, iret
+  integer(kind=8)   :: n
   integer(kind=8)   :: t1, t2, dt, count_rate, count_max
   real              :: secs
   real(kind=PREC)   :: ltmn, ltmx
