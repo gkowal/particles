@@ -76,7 +76,7 @@ module accelerations
 !
 !-------------------------------------------------------------------------------
 !
-    call interpolate_near(dm(:), uu(:,:,:,:), bb(:,:,:,:), vec(1:3), u(:), b(:))
+    call interpolate_lin(dm(:), uu(:,:,:,:), bb(:,:,:,:), vec(1:3), u(:), b(:))
 
     g        = sqrt(dot_product(vec(4:6), vec(4:6)) + 1.0d+00)
     v(1:3)   = vec(4:6) / g
