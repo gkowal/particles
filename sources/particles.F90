@@ -52,7 +52,7 @@ program particles
   character(len=32) :: tscale     = 'linear'
   character(len=32) :: method     = 'rk4'
   integer           :: nparticles = 1000
-  integer           :: nsteps     = 101
+  integer           :: nsteps     = 100
   real(kind=PREC)   :: dtini      = 1.0d-04
   real(kind=PREC)   :: dtmax      = 1.0d-03
   real(kind=PREC)   :: tmin       = 1.0d-03
@@ -182,15 +182,17 @@ program particles
 
   write(*,*)
   write(*,"(' Output:')")
-  write(stmp,"(i12)") nsteps
   select case(trim(tscale))
   case('lin', 'linear')
     write(*,"('   time scale    =  linear')")
+    nsteps = nsteps + 1
   case('log', 'logarithmic', 'log10')
     write(*,"('   time scale    =  logarithmic')")
+    nsteps = int(log10(tmax) - log10(tmin)) * nsteps + 2
   case default
     write(*,"('   time scale    =  unknown')")
   end select
+  write(stmp,"(i12)") nsteps
   write(*,"('   nsteps        = ', 1x, a)"  ) trim(adjustl(stmp))
   write(*,"('   tmin          = ', 1es12.5)") tmin
   write(*,"('   tmax          = ', 1es12.5)") tmax
