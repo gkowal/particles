@@ -31,7 +31,7 @@ program particles
   use fields      , only : initialize_fields, finalize_fields
   use fields      , only : dm, uu, bb
   use fitsio      , only : initialize_fitsio, finalize_fitsio, write_data
-  use integrations, only : integrate_rk4, integrate_rk5, integrate_si4
+  use integrations, only : integrate_rk5
   use parameters  , only : read_parameters
   use parameters  , only : get_parameter_integer, get_parameter_real, get_parameter_string
   use random      , only : initialize_random, finalize_random                  &
@@ -266,30 +266,12 @@ program particles
   call system_clock(t1)
 
   select case(trim(method))
-  case('rk4')
-!$omp parallel do
-!$acc data copy(state) copyin(dm,uu,bb,time)
-!$acc kernels
-    do n = 1, nparticles
-      call integrate_rk4(nsteps, dm, params, time, uu, bb, state(:,:,n), counter(n))
-    end do
-!$acc end kernels
-!$acc end data
   case('rk5')
 !$omp parallel do
 !$acc data copy(state) copyin(dm,uu,bb,time)
 !$acc kernels
     do n = 1, nparticles
       call integrate_rk5(nsteps, dm, params, time, uu, bb, state(:,:,n), counter(n))
-    end do
-!$acc end kernels
-!$acc end data
-  case('si4')
-!$omp parallel do
-!$acc data copy(state) copyin(dm,uu,bb,time)
-!$acc kernels
-    do n = 1, nparticles
-      call integrate_si4(nsteps, dm, params, time, uu, bb, state(:,:,n), counter(n))
     end do
 !$acc end kernels
 !$acc end data
