@@ -50,7 +50,7 @@ program particles
   character(len=32) :: simulation = 'newtonian'
   character(len=32) :: ptype      = 'proton'
   character(len=32) :: tscale     = 'linear'
-  character(len=32) :: method     = 'rk4'
+  character(len=32) :: method     = 'rk5'
   integer           :: nparticles = 1000
   integer           :: nsteps     = 100
   real(kind=PREC)   :: dtini      = 1.0d-04
@@ -169,12 +169,8 @@ program particles
   write(*,*)
   write(*,"(' Methods:')")
   select case(trim(method))
-  case('rk4')
-    write(*,"('   integration   =  4th order classic Runge-Kutta')")
   case('rk5')
     write(*,"('   integration   =  5th order Runge-Kutta-Cash-Karp')")
-  case('si4')
-    write(*,"('   integration   =  4th order implicit Gauss-Legendre Runge-Kutta')")
   end select
   write(*,"('   dtini         = ', 1es12.5)") dtini
   write(*,"('   dtmax         = ', 1es12.5)") dtmax
