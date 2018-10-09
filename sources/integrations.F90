@@ -111,7 +111,7 @@ module integrations
 
     cnt        = 0
     t          = 0.0d+00
-    dt         = min(dtm, dti)
+    dt         = dti_guess(5, dm, params, uu, bb, state(1:6,1))
     n          = 1
     si(1:6)    = state(1:6,n)
     state(7,n) = sqrt(dot_product(si(4:6), si(4:6)) + 1.0d+00)
@@ -166,7 +166,7 @@ module integrations
         dtn = dt * max(fcmn, safe * del**(-0.25d+00))
       end if
 
-      dt = min(dtn, dtm, tmx - t)
+      dt = min(dtn, dtm)
     end do
 
 !-------------------------------------------------------------------------------
@@ -315,7 +315,7 @@ module integrations
 
     cnt        = 0
     t          = 0.0d+00
-    dt         = min(dtm, dti)
+    dt         = dti_guess(8, dm, params, uu, bb, state(1:6,1))
     n          = 1
     si(1:6)    = state(1:6,n)
     state(7,n) = sqrt(dot_product(si(4:6), si(4:6)) + 1.0d+00)
@@ -427,12 +427,88 @@ module integrations
         dtn = dt * max(fcmn, safe * err**expo)
       end if
 
-      dt = min(dtn, dtm, tmx - t)
+      dt = min(dtn, dtm)
     end do
 
 !-------------------------------------------------------------------------------
 !
   end subroutine
+!
+!===============================================================================
+!
+! function DTI_GUESS:
+! ------------------
+!
+!   Function estimates the initial time step for a given integration order.
+!
+!   Arguments:
+!
+!     iord   - the order of integration (input);
+!     dm     - dimensions of the field components (input);
+!     params - the vector of parameters (input);
+!     uu, bb - the components of velocity and magnetic fields (input);
+!     si     - the initial particle state vector: position and velocity (input);
+!
+!===============================================================================
+!
+  function dti_guess(iord, dm, params, uu, bb, si) result(dti)
+
+    use accelerations, only : acceleration
+
+    implicit none
+    !$acc routine (dti_guess) seq
+
+! subroutine arguments
+!
+    integer                                        , intent(in) :: iord
+    integer, dimension(3)                          , intent(in) :: dm
+    real(kind=PREC), dimension(16)                 , intent(in) :: params
+    real(kind=PREC), dimension(dm(1),dm(2),dm(3),3), intent(in) :: uu, bb
+    real(kind=PREC), dimension(6)                  , intent(in) :: si
+
+! local variables
+!
+    real(kind=PREC)                  :: qom, vun, dti, dtf, dtm, tol
+    real(kind=PREC)                  :: d0, d1, d2
+    real(kind=PREC), dimension(6)    :: sr, sf, ki, kf
+
+! parameters
+!
+!
+!-------------------------------------------------------------------------------
+!
+    qom  = params(1)
+    vun  = params(2)
+    dtm  = params(5)
+    tol  = params(6)
+
+    call acceleration(qom, vun, dm, uu, bb, si(1:6), ki(1:6))
+
+    sr(1:6) = tol + tol * abs(si(1:6))
+
+    d0  = sqrt(sum((si(1:6) / sr(1:6))**2) / 6.0d+00)
+    d1  = sqrt(sum((ki(1:6) / sr(1:6))**2) / 6.0d+00)
+    if (min(d0, d1) < 1.0d-10) then
+      dti = 1.0d-06
+    else
+      dti = 1.0d-01 * (d0 / d1)
+    end if
+
+    sf(1:6) = si(1:6) + dti * ki(1:6)
+    call acceleration(qom, vun, dm, uu, bb, sf(1:6), kf(1:6))
+    d2  = max(d1, sqrt(sum(((sf(1:6) - si(1:6)) / sr(1:6))**2) / 6.0d+00) / dti)
+    if (d2 <= 1.0d-15) then
+      dtf = max(1.0d-06, 1.0d-03 * dti)
+    else
+      dtf = (1.0d-02 / d2)**(1.0d+00 / iord)
+    end if
+    dti = min(1.0d+02 * dti, dtf, dtm)
+
+    return
+
+!-------------------------------------------------------------------------------
+!
+  end function
 
 !===============================================================================
 !
