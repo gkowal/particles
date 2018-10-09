@@ -31,7 +31,7 @@ program particles
   use fields      , only : initialize_fields, finalize_fields
   use fields      , only : dm, uu, bb
   use fitsio      , only : initialize_fitsio, finalize_fitsio, write_data
-  use integrations, only : integrate_rk5
+  use integrations, only : integrate_rk5, integrate_dp853
   use parameters  , only : read_parameters
   use parameters  , only : get_parameter_integer, get_parameter_real, get_parameter_string
   use random      , only : initialize_random, finalize_random                  &
@@ -171,6 +171,8 @@ program particles
   select case(trim(method))
   case('rk5')
     write(*,"('   integration   =  5th order Runge-Kutta-Cash-Karp')")
+  case('dp853', 'rk8')
+    write(*,"('   integration   =  8th order Runge-Kutta by Dorman & Prince')")
   end select
   write(*,"('   dtini         = ', 1es12.5)") dtini
   write(*,"('   dtmax         = ', 1es12.5)") dtmax
@@ -268,6 +270,15 @@ program particles
 !$acc kernels
     do n = 1, nparticles
       call integrate_rk5(nsteps, dm, params, time, uu, bb, state(:,:,n), counter(n))
+    end do
+!$acc end kernels
+!$acc end data
+  case('dp853', 'rk8')
+!$omp parallel do
+!$acc data copy(state) copyin(dm,uu,bb,time)
+!$acc kernels
+    do n = 1, nparticles
+      call integrate_dp853(nsteps, dm, params, time, uu, bb, state(:,:,n), counter(n))
     end do
 !$acc end kernels
 !$acc end data

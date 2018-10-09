@@ -163,6 +163,267 @@ module integrations
 !-------------------------------------------------------------------------------
 !
   end subroutine
+!
+!===============================================================================
+!
+! subroutine INTEGRATE_DP853:
+! --------------------------
+!
+!   Subroutine integrate particle trajectory using an explicit Runge-Kutta
+!   method of order 8(5,3) due to Dorman & Prince with step control and dense
+!   output.
+!
+!   Arguments:
+!
+!     m      - the number of steps to store (input);
+!     dm     - dimensions of the field components (input);
+!     params - the vector of parameters (input);
+!     time   - the vector of snapshot times (input);
+!     uu, bb - the components of velocity and magnetic fields (input);
+!     state  - the particle state vector, position, velocity, and others
+!              (input/output);
+!     cnt    - the number of computed steps (output);
+!
+!===============================================================================
+!
+  subroutine integrate_dp853(m, dm, params, time, uu, bb, state, cnt)
+
+    use accelerations, only : acceleration
+
+    implicit none
+    !$acc routine (integrate_dp853) seq
+
+! subroutine arguments
+!
+    integer                                        , intent(in)    :: m
+    integer, dimension(3)                          , intent(in)    :: dm
+    real(kind=PREC), dimension(8)                  , intent(in)    :: params
+    real(kind=PREC), dimension(m)                  , intent(in)    :: time
+    real(kind=PREC), dimension(dm(1),dm(2),dm(3),3), intent(in)    :: uu, bb
+    real(kind=PREC), dimension(8,m)                , intent(inout) :: state
+    integer(kind=8)                                , intent(out)   :: cnt
+
+! local variables
+!
+    integer                          :: n
+    real(kind=PREC)                  :: qom, vun, tmx, dti, dtm, tol, beta
+    real(kind=PREC)                  :: fcmn, fcmx, safe, fcold, expo
+    real(kind=PREC)                  :: t, dt, dtn, err3, err5, deno, err
+    real(kind=PREC)                  :: fl, fr
+    real(kind=PREC), dimension(6)    :: si, ss, sf, er, sr, ds
+    real(kind=PREC), dimension(10,6) :: k
+
+! parameters
+!
+    real(kind=PREC), parameter :: a0201 =  5.26001519587677318785587544488d-02 &
+                                , a0301 =  1.97250569845378994544595329183d-02 &
+                                , a0302 =  5.91751709536136983633785987549d-02 &
+                                , a0401 =  2.95875854768068491816892993775d-02 &
+                                , a0403 =  8.87627564304205475450678981324d-02 &
+                                , a0501 =  2.41365134159266685502369798665d-01 &
+                                , a0503 = -8.84549479328286085344864962717d-01 &
+                                , a0504 =  9.24834003261792003115737966543d-01 &
+                                , a0601 =  3.70370370370370370370370370370d-02 &
+                                , a0604 =  1.70828608729473871279604482173d-01 &
+                                , a0605 =  1.25467687566822425016691814123d-01 &
+                                , a0701 =  3.71093750000000000000000000000d-02 &
+                                , a0704 =  1.70252211019544039314978060272d-01 &
+                                , a0705 =  6.02165389804559606850219397283d-02 &
+                                , a0706 = -1.75781250000000000000000000000d-02 &
+                                , a0801 =  3.70920001185047927108779319836d-02 &
+                                , a0804 =  1.70383925712239993810214054705d-01 &
+                                , a0805 =  1.07262030446373284651809199168d-01 &
+                                , a0806 = -1.53194377486244017527936158236d-02 &
+                                , a0807 =  8.27378916381402288758473766002d-03 &
+                                , a0901 =  6.24110958716075717114429577812d-01 &
+                                , a0904 = -3.36089262944694129406857109825d+00 &
+                                , a0905 = -8.68219346841726006818189891453d-01 &
+                                , a0906 =  2.75920996994467083049415600797d+01 &
+                                , a0907 =  2.01540675504778934086186788979d+01 &
+                                , a0908 = -4.34898841810699588477366255144d+01 &
+                                , a1001 =  4.77662536438264365890433908527d-01 &
+                                , a1004 = -2.48811461997166764192642586468d+00 &
+                                , a1005 = -5.90290826836842996371446475743d-01 &
+                                , a1006 =  2.12300514481811942347288949897d+01 &
+                                , a1007 =  1.52792336328824235832596922938d+01 &
+                                , a1008 = -3.32882109689848629194453265587d+01 &
+                                , a1009 = -2.03312017085086261358222928593d-02 &
+                                , a1101 = -9.37142430085987325717040216580d-01 &
+                                , a1104 =  5.18637242884406370830023853209d+00 &
+                                , a1105 =  1.09143734899672957818500254654d+00 &
+                                , a1106 = -8.14978701074692612513997267357d+00 &
+                                , a1107 = -1.85200656599969598641566180701d+01 &
+                                , a1108 =  2.27394870993505042818970056734d+01 &
+                                , a1109 =  2.49360555267965238987089396762d+00 &
+                                , a1110 = -3.04676447189821950038236690220d+00 &
+                                , a1201 =  2.27331014751653820792359768449d+00 &
+                                , a1204 = -1.05344954667372501984066689879d+01 &
+                                , a1205 = -2.00087205822486249909675718444d+00 &
+                                , a1206 = -1.79589318631187989172765950534d+01 &
+                                , a1207 =  2.79488845294199600508499808837d+01 &
+                                , a1208 = -2.85899827713502369474065508674d+00 &
+                                , a1209 = -8.87285693353062954433549289258d+00 &
+                                , a1210 =  1.23605671757943030647266201528d+01 &
+                                , a1211 =  6.43392746015763530355970484046d-01
+
+    real(kind=PREC), parameter :: b01 =  5.42937341165687622380535766363d-02   &
+                                , b06 =  4.45031289275240888144113950566d+00   &
+                                , b07 =  1.89151789931450038304281599044d+00   &
+                                , b08 = -5.80120396001058478146721142270d+00   &
+                                , b09 =  3.11164366957819894408916062370d-01   &
+                                , b10 = -1.52160949662516078556178806805d-01   &
+                                , b11 =  2.01365400804030348374776537501d-01   &
+                                , b12 =  4.47106157277725905176885569043d-02
+
+    real(kind=PREC), parameter :: bh1 = 0.244094488188976377952755905512d+00   &
+                                , bh2 = 0.733846688281611857341361741547d+00   &
+                                , bh3 = 0.220588235294117647058823529412d-01
+
+    real(kind=PREC), parameter :: er01 =  0.1312004499419488073250102996d-01   &
+                                , er06 = -0.1225156446376204440720569753d+01   &
+                                , er07 = -0.4957589496572501915214079952d+00   &
+                                , er08 =  0.1664377182454986536961530415d+01   &
+                                , er09 = -0.3503288487499736816886487290d+00   &
+                                , er10 =  0.3341791187130174790297318841d+00   &
+                                , er11 =  0.8192320648511571246570742613d-01   &
+                                , er12 = -0.2235530786388629525884427845d-01
+!
+!-------------------------------------------------------------------------------
+!
+    qom  = params(1)
+    vun  = params(2)
+    tmx  = params(3)
+    dti  = params(4)
+    dtm  = params(5)
+    tol  = params(6)
+
+    fcmn       = 3.3d-01
+    fcmx       = 6.0d+00
+    safe       = 9.0d-01
+    beta       = 0.0d+00
+    expo       = 2.0d-01 * beta - 1.25d-01
+    fcold      = 1.0d-04
+
+    cnt        = 0
+    t          = 0.0d+00
+    dt         = min(dtm, dti)
+    n          = 1
+    si(1:6)    = state(1:6,n)
+    state(7,n) = sqrt(dot_product(si(4:6), si(4:6)) + 1.0d+00)
+    state(8,n) = dt
+    n          = n + 1
+
+    do while(t < tmx)
+
+! the 12 steps
+!
+      ss(1:6)  = si(1:6)
+      call acceleration(qom, vun, dm, uu, bb, ss, k(1,1:6))
+
+      ss(1:6)  = si(1:6) + dt * a0201 * k(1,1:6)
+      call acceleration(qom, vun, dm, uu, bb, ss, k(2,1:6))
+
+      ss(1:6)  = si(1:6) + dt * (a0301 * k(1,1:6) + a0302 * k(2,1:6))
+      call acceleration(qom, vun, dm, uu, bb, ss, k(3,1:6))
+
+      ss(1:6)  = si(1:6) + dt * (a0401 * k(1,1:6) + a0403 * k(3,1:6))
+      call acceleration(qom, vun, dm, uu, bb, ss, k(4,1:6))
+
+      ss(1:6)  = si(1:6) + dt * (a0501 * k(1,1:6) + a0503 * k(3,1:6)           &
+                               + a0504 * k(4,1:6))
+      call acceleration(qom, vun, dm, uu, bb, ss, k(5,1:6))
+
+      ss(1:6)  = si(1:6) + dt * (a0601 * k(1,1:6) + a0604 * k(4,1:6)           &
+                               + a0605 * k(5,1:6))
+      call acceleration(qom, vun, dm, uu, bb, ss, k(6,1:6))
+
+      ss(1:6)  = si(1:6) + dt * (a0701 * k(1,1:6) + a0704 * k(4,1:6)           &
+                               + a0705 * k(5,1:6) + a0706 * k(6,1:6))
+      call acceleration(qom, vun, dm, uu, bb, ss, k(7,1:6))
+
+      ss(1:6)  = si(1:6) + dt * (a0801 * k(1,1:6) + a0804 * k(4,1:6)           &
+                               + a0805 * k(5,1:6) + a0806 * k(6,1:6)           &
+                               + a0807 * k(7,1:6))
+      call acceleration(qom, vun, dm, uu, bb, ss, k(8,1:6))
+
+      ss(1:6)  = si(1:6) + dt * (a0901 * k(1,1:6) + a0904 * k(4,1:6)           &
+                               + a0905 * k(5,1:6) + a0906 * k(6,1:6)           &
+                               + a0907 * k(7,1:6) + a0908 * k(8,1:6))
+      call acceleration(qom, vun, dm, uu, bb, ss, k(9,1:6))
+
+      ss(1:6)  = si(1:6) + dt * (a1001 * k(1,1:6) + a1004 * k(4,1:6)           &
+                               + a1005 * k(5,1:6) + a1006 * k(6,1:6)           &
+                               + a1007 * k(7,1:6) + a1008 * k(8,1:6)           &
+                               + a1009 * k(9,1:6))
+      call acceleration(qom, vun, dm, uu, bb, ss, k(10,1:6))
+
+      ss(1:6)  = si(1:6) + dt * (a1101 * k(1,1:6) + a1104 * k(4,1:6)           &
+                               + a1105 * k(5,1:6) + a1106 * k(6,1:6)           &
+                               + a1107 * k(7,1:6) + a1108 * k(8,1:6)           &
+                               + a1109 * k(9,1:6) + a1110 * k(10,1:6))
+      call acceleration(qom, vun, dm, uu, bb, ss, k(2,1:6))
+
+      ss(1:6)  = si(1:6) + dt * (a1201 * k(1,1:6) + a1204 * k(4,1:6)           &
+                               + a1205 * k(5,1:6) + a1206 * k(6,1:6)           &
+                               + a1207 * k(7,1:6) + a1208 * k(8,1:6)           &
+                               + a1209 * k(9,1:6) + a1210 * k(10,1:6)          &
+                               + a1211 * k(2,1:6))
+      call acceleration(qom, vun, dm, uu, bb, ss, k(3,1:6))
+
+      k(4,1:6) = b01 * k( 1,1:6) + b06 * k( 6,1:6) + b07 * k( 7,1:6)           &
+               + b08 * k( 8,1:6) + b09 * k( 9,1:6) + b10 * k(10,1:6)           &
+               + b11 * k( 2,1:6) + b12 * k( 3,1:6)
+      sf(:)    = si(1:6) + dt * k(4,1:6)
+
+! error estimation
+!
+      sr(1:6) = tol + tol * max(abs(si(1:6)), abs(sf(1:6)))
+      er(1:6) = k(4,1:6) - bh1 * k(1,1:6) - bh2 * k(9,1:6) - bh3 * k(3,1:6)
+      err3 = sum((er(:) / sr(:))**2) ! 3rd order error
+      er(1:6) = er01 * k(1,1:6) + er06 * k(6,1:6) + er07 * k( 7,1:6)           &
+              + er08 * k(8,1:6) + er09 * k(9,1:6) + er10 * k(10,1:6)           &
+              + er11 * k(2,1:6) + er12 * k(3,1:6)
+      err5 = sum((er(:) / sr(:))**2) ! 5th order error
+      deno = err5 + 1.0d-02 * err3
+      if (deno <= 0.0d+00) deno = 1.0d+00
+      err = abs(dt) * err5 * sqrt(1.0d+00 / (6 * deno))
+
+      if (err <= 1.0d+00) then
+
+        cnt   = cnt + 1
+        t     = t + dt
+
+! output
+!
+        call acceleration(qom, vun, dm, uu, bb, si(1:6), k(1,1:6))
+        call acceleration(qom, vun, dm, uu, bb, sf(1:6), k(2,1:6))
+        do while (t >= time(n) .and. n <= m)
+          fr = (t - time(n)) / dt
+          fl = 1.0d+00 - fr
+          ds = sf(1:6) - si(1:6)
+          state(1:6,n) = fr * si(1:6) + fl * sf(1:6)                           &
+                       + fl * fr * ((dt*k(1,1:6) - ds(1:6)) * fr               &
+                                  + (ds(1:6) - dt*k(2,1:6)) * fl)
+          state(  7,n) = sqrt(dot_product(state(4:6,n), state(4:6,n)) + 1.0d+00)
+          state(  8,n) = dt
+          n  = n + 1
+        end do
+        si(:) = sf(:)
+
+! new timestep
+!
+        dtn = dt * min(fcmx, max(fcmn, safe * fcold**beta * err**expo))
+        fcold = max(err, 1.0d-04)
+      else
+        dtn = dt * max(fcmn, safe * err**expo)
+      end if
+
+      dt = min(dtn, tmx - t)
+    end do
+
+!-------------------------------------------------------------------------------
+!
+  end subroutine
 
 !===============================================================================
 !
