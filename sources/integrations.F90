@@ -65,7 +65,7 @@ module integrations
 !
     integer                                        , intent(in)    :: m
     integer, dimension(3)                          , intent(in)    :: dm
-    real(kind=PREC), dimension(8)                  , intent(in)    :: params
+    real(kind=PREC), dimension(16)                 , intent(in)    :: params
     real(kind=PREC), dimension(m)                  , intent(in)    :: time
     real(kind=PREC), dimension(dm(1),dm(2),dm(3),3), intent(in)    :: uu, bb
     real(kind=PREC), dimension(8,m)                , intent(inout) :: state
@@ -74,8 +74,8 @@ module integrations
 ! local variables
 !
     integer                         :: i, j, n
-    real(kind=PREC)                 :: qom, vun, tmx, dti, dtm, tol
-    real(kind=PREC)                 :: t, dt, dtn, del, fl, fr
+    real(kind=PREC)                 :: qom, vun, tmx, dti, dtm, tol, fcmn, fcmx
+    real(kind=PREC)                 :: t, dt, dtn, del, fl, fr, safe
     real(kind=PREC), dimension(6)   :: si, sf, er, sr, ds
     real(kind=PREC), dimension(6)   :: ac
     real(kind=PREC), dimension(6,6) :: s, k
@@ -99,12 +99,15 @@ module integrations
 !
 !-------------------------------------------------------------------------------
 !
-    qom = params(1)
-    vun = params(2)
-    tmx = params(3)
-    dti = params(4)
-    dtm = params(5)
-    tol = params(6)
+    qom  = params(1)
+    vun  = params(2)
+    tmx  = params(3)
+    dti  = params(4)
+    dtm  = params(5)
+    tol  = params(6)
+    fcmn = params(7)
+    fcmx = params(8)
+    safe = params(9)
 
     cnt        = 0
     t          = 0.0d+00
@@ -131,14 +134,14 @@ module integrations
         er(i) =         sum(d(1:6) * k(1:6,i))
       end do
 
+! error estimator
+!
       sr(1:6) = abs(si(1:6)) + abs(k(1,1:6)) + eps
-
       del = maxval(abs(er / sr)) / tol
 
-      if (del > 1.0d+00) then
-        dtn = 9.0d-01 * dt * del**(-0.25d+00)
-        dt  = min(dtm, max(abs(dtn), 1.0d-01 * dt))
-      else
+! output
+!
+      if (del <= 1.0d+00) then
         cnt   = cnt + 1
         t     = t + dt
         call acceleration(qom, vun, dm, uu, bb, s(6,1:6), ac)
@@ -155,9 +158,15 @@ module integrations
           n  = n + 1
         end do
         si(:) = sf(:)
-        dtn = 9.0d-01 * dt * del**(-0.20d+00)
-        dt  = min(dtm, dtn, 5.0d+00 * dt)
+
+! new timestep
+!
+        dtn = dt * min(fcmx, safe * del**(-0.20d+00))
+      else
+        dtn = dt * max(fcmn, safe * del**(-0.25d+00))
       end if
+
+      dt = min(dtn, dtm, tmx - t)
     end do
 
 !-------------------------------------------------------------------------------
@@ -197,7 +206,7 @@ module integrations
 !
     integer                                        , intent(in)    :: m
     integer, dimension(3)                          , intent(in)    :: dm
-    real(kind=PREC), dimension(8)                  , intent(in)    :: params
+    real(kind=PREC), dimension(16)                 , intent(in)    :: params
     real(kind=PREC), dimension(m)                  , intent(in)    :: time
     real(kind=PREC), dimension(dm(1),dm(2),dm(3),3), intent(in)    :: uu, bb
     real(kind=PREC), dimension(8,m)                , intent(inout) :: state
@@ -296,11 +305,11 @@ module integrations
     dti  = params(4)
     dtm  = params(5)
     tol  = params(6)
+    fcmn = params(7)
+    fcmx = params(8)
+    safe = params(9)
+    beta = params(10)
 
-    fcmn       = 3.3d-01
-    fcmx       = 6.0d+00
-    safe       = 9.0d-01
-    beta       = 0.0d+00
     expo       = 2.0d-01 * beta - 1.25d-01
     fcold      = 1.0d-04
 
@@ -418,7 +427,7 @@ module integrations
         dtn = dt * max(fcmn, safe * err**expo)
       end if
 
-      dt = min(dtn, tmx - t)
+      dt = min(dtn, dtm, tmx - t)
     end do
 
 !-------------------------------------------------------------------------------

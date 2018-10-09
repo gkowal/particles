@@ -58,6 +58,10 @@ program particles
   real(kind=PREC)   :: tmin       = 1.0d-03
   real(kind=PREC)   :: tmax       = 1.0d+00
   real(kind=PREC)   :: tolerance  = 1.0d-06
+  real(kind=PREC)   :: facmin     = 3.33d-01
+  real(kind=PREC)   :: facmax     = 6.00d+00
+  real(kind=PREC)   :: safe       = 9.00d-01
+  real(kind=PREC)   :: beta       = 0.00d+00
   real(kind=PREC)   :: temp       = 1.0d+03
   real(kind=PREC)   :: vth        = 1.0d-03
   real(kind=PREC)   :: valf       = 1.0d-03
@@ -79,7 +83,7 @@ program particles
   integer(kind=8)   :: t1, t2, dt, count_rate, count_max
   real              :: secs
   real(kind=PREC)   :: ltmn, ltmx
-  real(kind=PREC), dimension(8)                  :: params
+  real(kind=PREC), dimension(16)                 :: params
   real(kind=PREC), dimension(4)                  :: moms
 
 ! OpenMP variables
@@ -123,6 +127,10 @@ program particles
   call get_parameter_real   ("dtini"        , dtini     )
   call get_parameter_real   ("dtmax"        , dtmax     )
   call get_parameter_real   ("tolerance"    , tolerance )
+  call get_parameter_real   ("facmin"       , facmin    )
+  call get_parameter_real   ("facmax"       , facmax    )
+  call get_parameter_real   ("safe"         , safe      )
+  call get_parameter_real   ("beta"         , beta      )
 
   valf = 7.2757116026881272d+00 * bunit / sqrt(dens)
   vth  = sqrt(kb * temp / mp) / c
@@ -177,6 +185,10 @@ program particles
   write(*,"('   dtini         = ', 1es12.5)") dtini
   write(*,"('   dtmax         = ', 1es12.5)") dtmax
   write(*,"('   tolerance     = ', 1es12.5)") tolerance
+  write(*,"('   facmin        = ', 1es12.5)") facmin
+  write(*,"('   facmax        = ', 1es12.5)") facmax
+  write(*,"('   safe          = ', 1es12.5)") safe
+  write(*,"('   beta          = ', 1es12.5)") beta
 
   write(*,*)
   write(*,"(' Output:')")
@@ -254,12 +266,16 @@ program particles
   write(*,*)
   write(*,"(' Integrating trajectories...')")
 
-  params(1) = qom
-  params(2) = valf
-  params(3) = tmax
-  params(4) = dtini
-  params(5) = dtmax
-  params(6) = tolerance
+  params(1)   = qom
+  params(2)   = valf
+  params(3)   = tmax
+  params(4)   = dtini
+  params(5)   = dtmax
+  params(6)   = tolerance
+  params(7)   = facmin
+  params(8)   = facmax
+  params(9)   = safe
+  params(10)  = beta
 
   call system_clock(t1)
 
