@@ -69,7 +69,7 @@ module integrations
     real(kind=PREC), dimension(m)                  , intent(in)    :: time
     real(kind=PREC), dimension(dm(1),dm(2),dm(3),3), intent(in)    :: uu, bb
     real(kind=PREC), dimension(8,m)                , intent(inout) :: state
-    integer(kind=8)                                , intent(out)   :: cnt
+    integer(kind=8), dimension(3)                  , intent(out)   :: cnt
 
 ! local variables
 !
@@ -139,11 +139,12 @@ module integrations
       sr(1:6) = abs(si(1:6)) + abs(k(1,1:6)) + eps
       del = maxval(abs(er / sr)) / tol
 
+      if (del <= 1.0d+00) then
+
+        t = t + dt
+
 ! output
 !
-      if (del <= 1.0d+00) then
-        cnt   = cnt + 1
-        t     = t + dt
         call acceleration(qom, vun, dm, uu, bb, s(6,1:6), ac)
         k(6,1:6) = dt * ac(1:6)
         do while (t >= time(n) .and. n <= m)
@@ -159,13 +160,30 @@ module integrations
         end do
         si(:) = sf(:)
 
-! new timestep
+! increase counter of accepted steps
+!
+        cnt(2) = cnt(2) + 1
+
+! new time step
 !
         dtn = dt * min(fcmx, safe * del**(-0.20d+00))
       else
+
+! increase counter of rejected steps
+!
+        cnt(3) = cnt(3) + 1
+
+! new time step
+!
         dtn = dt * max(fcmn, safe * del**(-0.25d+00))
       end if
 
+! increase counter of all steps
+!
+      cnt(1) = cnt(1) + 1
+
+! substitute time step
+!
       dt = min(dtn, dtm)
     end do
 
@@ -210,7 +228,7 @@ module integrations
     real(kind=PREC), dimension(m)                  , intent(in)    :: time
     real(kind=PREC), dimension(dm(1),dm(2),dm(3),3), intent(in)    :: uu, bb
     real(kind=PREC), dimension(8,m)                , intent(inout) :: state
-    integer(kind=8)                                , intent(out)   :: cnt
+    integer(kind=8), dimension(3)                  , intent(out)   :: cnt
 
 ! local variables
 !
@@ -399,8 +417,7 @@ module integrations
 
       if (err <= 1.0d+00) then
 
-        cnt   = cnt + 1
-        t     = t + dt
+        t = t + dt
 
 ! output
 !
@@ -419,14 +436,31 @@ module integrations
         end do
         si(:) = sf(:)
 
-! new timestep
+! increase counter of accepted steps
+!
+        cnt(2) = cnt(2) + 1
+
+! new time step
 !
         dtn = dt * min(fcmx, max(fcmn, safe * fcold**beta * err**expo))
         fcold = max(err, 1.0d-04)
       else
+
+! increase counter of rejected steps
+!
+        cnt(3) = cnt(3) + 1
+
+! new time step
+!
         dtn = dt * max(fcmn, safe * err**expo)
       end if
 
+! increase counter of all steps
+!
+      cnt(1) = cnt(1) + 1
+
+! substitute time step
+!
       dt = min(dtn, dtm)
     end do
 

@@ -92,7 +92,7 @@ program particles
 
 ! allocatable variables
 !
-  integer(kind=8), dimension(:)    , allocatable :: counter
+  integer(kind=8), dimension(:,:)  , allocatable :: counter
   real(kind=PREC), dimension(:)    , allocatable :: time
   real(kind=PREC), dimension(:,:,:), allocatable :: state
 !
@@ -213,11 +213,11 @@ program particles
   call initialize_fitsio()
   call initialize_fields()
 
-  allocate(counter(nparticles))
+  allocate(counter(3,nparticles))
   allocate(time(nsteps))
   allocate(state(8,nsteps,nparticles))
 
-  counter(:)   = 0
+  counter(:,:) = 0
   time(:)      = 0.0d+00
   state(:,:,:) = 0.0d+00
 
@@ -285,7 +285,7 @@ program particles
 !$acc data copy(state) copyin(dm,uu,bb,time)
 !$acc kernels
     do n = 1, nparticles
-      call integrate_rk5(nsteps, dm, params, time, uu, bb, state(:,:,n), counter(n))
+      call integrate_rk5(nsteps, dm, params, time, uu, bb, state(:,:,n), counter(:,n))
     end do
 !$acc end kernels
 !$acc end data
@@ -294,7 +294,7 @@ program particles
 !$acc data copy(state) copyin(dm,uu,bb,time)
 !$acc kernels
     do n = 1, nparticles
-      call integrate_dp853(nsteps, dm, params, time, uu, bb, state(:,:,n), counter(n))
+      call integrate_dp853(nsteps, dm, params, time, uu, bb, state(:,:,n), counter(:,n))
     end do
 !$acc end kernels
 !$acc end data
