@@ -32,6 +32,7 @@ module fitsio
 
   interface write_data
     module procedure write_data_integer_1d
+    module procedure write_data_integer_2d
     module procedure write_data_real_1d
     module procedure write_data_real_2d
     module procedure write_data_real_3d
@@ -309,6 +310,50 @@ module fitsio
 !-------------------------------------------------------------------------------
 !
   end subroutine write_data_integer_1d
+!
+!===============================================================================
+!
+! subroutine WRITE_DATA_INTEGER_2D:
+! --------------------------------
+!
+!   Subroutine write the input data of integer type to file.
+!
+!
+!===============================================================================
+!
+  subroutine write_data_integer_2d(fname, qty, tunit, temperature)
+
+    implicit none
+
+! subroutine arguments
+!
+    character(len=*)               , intent(in) :: fname
+    integer(kind=8), dimension(:,:), intent(in) :: qty
+    real(kind=PREC), optional      , intent(in) :: tunit, temperature
+
+! local variables
+!
+    logical               :: info
+    integer               :: status, iunit, bsize, bpix, naxes, nn
+    integer, dimension(2) :: dm
+!
+!-------------------------------------------------------------------------------
+!
+    status = 0
+    call ftgiou(iunit, status)
+    call ftinit(iunit, fname, 1, status)
+    dm(1) = size(qty, 1)
+    dm(2) = size(qty, 2)
+    nn    = size(qty)
+    bpix  = 64
+    call ftphpr(iunit, .true., bpix, 2, dm, 0, 1, .true., status)
+    call ftpprk(iunit, 1, 1, nn, qty, status)
+    call ftclos(iunit, status)
+    call ftfiou(iunit, status)
+
+!-------------------------------------------------------------------------------
+!
+  end subroutine write_data_integer_2d
 !
 !===============================================================================
 !
