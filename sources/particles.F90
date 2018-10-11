@@ -57,7 +57,8 @@ program particles
   real(kind=PREC)   :: dtmax      = 1.0d-03
   real(kind=PREC)   :: tmin       = 1.0d-03
   real(kind=PREC)   :: tmax       = 1.0d+00
-  real(kind=PREC)   :: tolerance  = 1.0d-06
+  real(kind=PREC)   :: atol       = 1.0d-06
+  real(kind=PREC)   :: rtol       = 1.0d-06
   real(kind=PREC)   :: facmin     = 3.33d-01
   real(kind=PREC)   :: facmax     = 6.00d+00
   real(kind=PREC)   :: safe       = 9.00d-01
@@ -126,7 +127,8 @@ program particles
   call get_parameter_real   ("tmax"         , tmax      )
   call get_parameter_real   ("dtini"        , dtini     )
   call get_parameter_real   ("dtmax"        , dtmax     )
-  call get_parameter_real   ("tolerance"    , tolerance )
+  call get_parameter_real   ("atol"         , atol      )
+  call get_parameter_real   ("rtol"         , rtol      )
   call get_parameter_real   ("facmin"       , facmin    )
   call get_parameter_real   ("facmax"       , facmax    )
   call get_parameter_real   ("safe"         , safe      )
@@ -184,7 +186,8 @@ program particles
   end select
   write(*,"('   dtini         = ', 1es12.5)") dtini
   write(*,"('   dtmax         = ', 1es12.5)") dtmax
-  write(*,"('   tolerance     = ', 1es12.5)") tolerance
+  write(*,"('   atol          = ', 1es12.5)") atol
+  write(*,"('   rtol          = ', 1es12.5)") rtol
   write(*,"('   facmin        = ', 1es12.5)") facmin
   write(*,"('   facmax        = ', 1es12.5)") facmax
   write(*,"('   safe          = ', 1es12.5)") safe
@@ -271,11 +274,12 @@ program particles
   params(3)   = tmax
   params(4)   = dtini
   params(5)   = dtmax
-  params(6)   = tolerance
-  params(7)   = facmin
-  params(8)   = facmax
-  params(9)   = safe
-  params(10)  = beta
+  params(6)   = atol
+  params(7)   = rtol
+  params(8)   = facmin
+  params(9)   = facmax
+  params(10)  = safe
+  params(11)  = beta
 
   call system_clock(t1)
 

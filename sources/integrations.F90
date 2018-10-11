@@ -74,8 +74,8 @@ module integrations
 ! local variables
 !
     integer                         :: i, j, n
-    real(kind=PREC)                 :: qom, vun, tmx, dti, dtm, tol, fcmn, fcmx
-    real(kind=PREC)                 :: t, dt, dtn, del, fl, fr, safe
+    real(kind=PREC)                 :: qom, vun, tmx, dti, dtm, atol, rtol, fcmn, fcmx, safe
+    real(kind=PREC)                 :: t, dt, dtn, del, fl, fr
     real(kind=PREC), dimension(6)   :: si, sf, er, sr, ds
     real(kind=PREC), dimension(6)   :: ac
     real(kind=PREC), dimension(6,6) :: s, k
@@ -104,10 +104,11 @@ module integrations
     tmx  = params(3)
     dti  = params(4)
     dtm  = params(5)
-    tol  = params(6)
-    fcmn = params(7)
-    fcmx = params(8)
-    safe = params(9)
+    atol = params(6)
+    rtol = params(7)
+    fcmn = params(8)
+    fcmx = params(9)
+    safe = params(10)
 
     cnt        = 0
     t          = 0.0d+00
@@ -137,7 +138,7 @@ module integrations
 ! error estimator
 !
       sr(1:6) = abs(si(1:6)) + abs(k(1,1:6)) + eps
-      del = maxval(abs(er / sr)) / tol
+      del = maxval(abs(er / sr)) / atol
 
       if (del <= 1.0d+00) then
 
@@ -233,7 +234,7 @@ module integrations
 ! local variables
 !
     integer                          :: n
-    real(kind=PREC)                  :: qom, vun, tmx, dti, dtm, tol, beta
+    real(kind=PREC)                  :: qom, vun, tmx, dti, dtm, atol, rtol, beta
     real(kind=PREC)                  :: fcmn, fcmx, safe, fcold, expo
     real(kind=PREC)                  :: t, dt, dtn, err3, err5, deno, err
     real(kind=PREC)                  :: fl, fr
@@ -322,11 +323,12 @@ module integrations
     tmx  = params(3)
     dti  = params(4)
     dtm  = params(5)
-    tol  = params(6)
-    fcmn = params(7)
-    fcmx = params(8)
-    safe = params(9)
-    beta = params(10)
+    atol = params(6)
+    rtol = params(7)
+    fcmn = params(8)
+    fcmx = params(9)
+    safe = params(10)
+    beta = params(11)
 
     expo       = 2.0d-01 * beta - 1.25d-01
     fcold      = 1.0d-04
@@ -400,11 +402,11 @@ module integrations
       k(4,1:6) = b01 * k( 1,1:6) + b06 * k( 6,1:6) + b07 * k( 7,1:6)           &
                + b08 * k( 8,1:6) + b09 * k( 9,1:6) + b10 * k(10,1:6)           &
                + b11 * k( 2,1:6) + b12 * k( 3,1:6)
-      sf(:)    = si(1:6) + dt * k(4,1:6)
+      sf(1:6)  = si(1:6) + dt * k(4,1:6)
 
 ! error estimation
 !
-      sr(1:6) = tol + tol * max(abs(si(1:6)), abs(sf(1:6)))
+      sr(1:6) = atol + rtol * max(abs(si(1:6)), abs(sf(1:6)))
       er(1:6) = k(4,1:6) - bh1 * k(1,1:6) - bh2 * k(9,1:6) - bh3 * k(3,1:6)
       err3 = sum((er(:) / sr(:))**2) ! 3rd order error
       er(1:6) = er01 * k(1,1:6) + er06 * k(6,1:6) + er07 * k( 7,1:6)           &
@@ -502,7 +504,7 @@ module integrations
 
 ! local variables
 !
-    real(kind=PREC)                  :: qom, vun, dti, dtf, dtm, tol
+    real(kind=PREC)                  :: qom, vun, dti, dtf, dtm, atol, rtol
     real(kind=PREC)                  :: d0, d1, d2
     real(kind=PREC), dimension(6)    :: sr, sf, ki, kf
 
@@ -514,11 +516,12 @@ module integrations
     qom  = params(1)
     vun  = params(2)
     dtm  = params(5)
-    tol  = params(6)
+    atol = params(6)
+    rtol = params(7)
 
     call acceleration(qom, vun, dm, uu, bb, si(1:6), ki(1:6))
 
-    sr(1:6) = tol + tol * abs(si(1:6))
+    sr(1:6) = atol + rtol * abs(si(1:6))
 
     d0  = sqrt(sum((si(1:6) / sr(1:6))**2) / 6.0d+00)
     d1  = sqrt(sum((ki(1:6) / sr(1:6))**2) / 6.0d+00)
