@@ -233,6 +233,7 @@ module integrations
 
 ! local variables
 !
+    logical                          :: rejected
     integer                          :: n
     real(kind=PREC)                  :: qom, vun, tmx, dti, dtm, atol, rtol, beta
     real(kind=PREC)                  :: fcmn, fcmx, safe, fcold, expo
@@ -332,6 +333,7 @@ module integrations
 
     expo       = 2.0d-01 * beta - 1.25d-01
     fcold      = 1.0d-04
+    rejected   = .false.
 
     cnt        = 0
     t          = 0.0d+00
@@ -414,8 +416,11 @@ module integrations
               + er11 * k(2,1:6) + er12 * k(3,1:6)
       err5 = sum((er(:) / sr(:))**2) ! 5th order error
       deno = err5 + 1.0d-02 * err3
-      if (deno <= 0.0d+00) deno = 1.0d+00
-      err = abs(dt) * err5 * sqrt(1.0d+00 / (6 * deno))
+      if (deno <= 0.0d+00) then
+        err = abs(dt) * err5 / sqrt(6.0d+00)
+      else
+        err = abs(dt) * err5 / sqrt(6.0d+00 * deno)
+      end if
 
       if (err <= 1.0d+00) then
 
@@ -444,8 +449,18 @@ module integrations
 
 ! new time step
 !
-        dtn = dt * min(fcmx, max(fcmn, safe * fcold**beta * err**expo))
         fcold = max(err, 1.0d-04)
+        dtn   = max(fcmn, safe * fcold**beta * err**expo)
+        if (rejected) then
+          dtn = dt * min(dtn, 1.0d+00)
+        else
+          dtn = dt * min(dtn, fcmx)
+        end if
+
+! set rejected flag
+!
+        rejected = .false.
+
       else
 
 ! increase counter of rejected steps
@@ -455,6 +470,11 @@ module integrations
 ! new time step
 !
         dtn = dt * max(fcmn, safe * err**expo)
+
+! set rejected flag
+!
+        rejected = .true.
+
       end if
 
 ! increase counter of all steps
