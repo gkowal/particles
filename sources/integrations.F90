@@ -236,8 +236,8 @@ module integrations
     logical                          :: rejected
     integer                          :: n
     real(kind=PREC)                  :: qom, vun, tmx, dti, dtm, atol, rtol, beta
-    real(kind=PREC)                  :: fcmn, fcmx, safe, fcold, expo
-    real(kind=PREC)                  :: t, dt, dtn, err3, err5, deno, err
+    real(kind=PREC)                  :: fcmn, fcmx, safe, expo
+    real(kind=PREC)                  :: t, dt, dtn, err3, err5, deno, err, errold
     real(kind=PREC)                  :: fl, fr
     real(kind=PREC), dimension(6)    :: si, ss, sf, er, sr, ds
     real(kind=PREC), dimension(10,6) :: k
@@ -332,7 +332,7 @@ module integrations
     beta = params(11)
 
     expo       = 2.0d-01 * beta - 1.25d-01
-    fcold      = 1.0d-04
+    errold     = 1.0d-04
     rejected   = .false.
 
     cnt        = 0
@@ -449,13 +449,13 @@ module integrations
 
 ! new time step
 !
-        fcold = max(err, 1.0d-04)
-        dtn   = max(fcmn, safe * fcold**beta * err**expo)
+        dtn   = max(fcmn, safe * err**expo * errold**beta)
         if (rejected) then
           dtn = dt * min(dtn, 1.0d+00)
         else
           dtn = dt * min(dtn, fcmx)
         end if
+        errold = max(err, 1.0d-04)
 
 ! set rejected flag
 !
