@@ -306,7 +306,7 @@ program particles
     end do
 !$acc end kernels
 !$acc end data
-  case('dp853', 'rk8')
+  case('dop853', 'dp853', 'rk8')
 !$omp parallel do
 !$acc data copy(state) copyin(dm,uu,bb,time)
 !$acc kernels
