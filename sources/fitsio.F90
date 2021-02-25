@@ -68,21 +68,21 @@ module fitsio
 !
   subroutine initialize_fitsio()
 
-    use parameters, only : get_parameter_string
+    use parameters, only : get_parameter
 
     implicit none
 
-    logical           :: info
+    logical :: info
 !
 !-------------------------------------------------------------------------------
 !
-    call get_parameter_string("datadir"        , datadir)
-    call get_parameter_string("x-velocity-name", uxname)
-    call get_parameter_string("y-velocity-name", uyname)
-    call get_parameter_string("z-velocity-name", uzname)
-    call get_parameter_string("x-magnetic-name", bxname)
-    call get_parameter_string("y-magnetic-name", byname)
-    call get_parameter_string("z-magnetic-name", bzname)
+    call get_parameter("datadir"        , datadir)
+    call get_parameter("x-velocity-name", uxname)
+    call get_parameter("y-velocity-name", uyname)
+    call get_parameter("z-velocity-name", uzname)
+    call get_parameter("x-magnetic-name", bxname)
+    call get_parameter("y-magnetic-name", byname)
+    call get_parameter("z-magnetic-name", bzname)
 
 ! add bar to the data path, if necessary
 !

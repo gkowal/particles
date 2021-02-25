@@ -3,7 +3,7 @@
 !!  This file is part of the PARTICLES source code, a program to integrate
 !!  test particles in magnetohydrodynamical simulations.
 !!
-!!  Copyright (C) 2008-2018 Grzegorz Kowal <grzegorz@amuncode.org>
+!!  Copyright (C) 2008-2021 Grzegorz Kowal <grzegorz@amuncode.org>
 !!
 !!  This program is free software: you can redistribute it and/or modify
 !!  it under the terms of the GNU General Public License as published by
@@ -33,6 +33,15 @@ module parameters
 !
   implicit none
 
+! MODULE INTERFACES:
+! =================
+!
+  interface get_parameter
+    module procedure get_parameter_integer
+    module procedure get_parameter_real
+    module procedure get_parameter_string
+  end interface
+
 ! MODULE PARAMETERS:
 ! =================
 !
@@ -58,13 +67,6 @@ module parameters
   character(len=nlen), dimension(:), allocatable, save :: pnames
   character(len=vlen), dimension(:), allocatable, save :: pvalues
 
-! interface for get_parameter_real
-!
-  interface get_parameter_real
-    module procedure get_parameter_real4
-    module procedure get_parameter_real8
-  end interface
-
 ! by default everything is private
 !
   private
@@ -72,10 +74,7 @@ module parameters
 ! declare public subroutines
 !
   public :: read_parameters, finalize_parameters
-  public :: get_parameter_integer, get_parameter_real, get_parameter_string
-#ifdef MPI
-  public :: redistribute_parameters
-#endif /* MPI */
+  public :: get_parameter_file, get_parameter
 
 !- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 !
@@ -92,8 +91,8 @@ module parameters
 !
 !   Arguments:
 !
-!     iret - the return value; if it is 0 everything went successfully,
-!            otherwise there was a problem;
+!     verbose - the flag determining if the subroutine should be verbose;
+!     status  - the return flag of the procedure execution status;
 !
 !   Note:
 !
@@ -102,7 +101,11 @@ module parameters
 !
 !===============================================================================
 !
-  subroutine read_parameters(iret)
+  subroutine read_parameters(verbose, status)
+
+! include external procedures and variables
+!
+    use iso_fortran_env, only : error_unit
 
 ! local variables are not implicit by default
 !
@@ -110,65 +113,56 @@ module parameters
 
 ! subroutine arguments
 !
-    integer, intent(inout) :: iret
+    logical, intent(in)  :: verbose
+    integer, intent(out) :: status
 
 ! local variables
 !
-    character(len=mlen)    :: line
-    integer                :: l
-    logical                :: info
-
-! external functions required to obtain comand line parameters
-!
-    integer                :: iargc
-#ifdef GNU
-    intrinsic              :: iargc, getarg
-#else /* GNU */
-    external               :: iargc, getarg
-#endif /* GNU */
+    character(len=mlen) :: opt, arg
+    integer             :: l
+    logical             :: info
 !
 !-------------------------------------------------------------------------------
 !
 ! parse the command line to check if a different parameter file has been
 ! provided
 !
-    do l = 1, iargc()
-      call getarg(l, line)
-      if (trim(line) == '-i' .or. trim(line) == '--input') then
-        call getarg(l + 1, line)
-        if (trim(line) /= '') then
-          fname = trim(line)
+    do l = 1, command_argument_count()
+      call get_command_argument(l, arg)
+      if (trim(arg) == '-i' .or. trim(arg) == '--input') then
+        opt = trim(arg)
+        call get_command_argument(l + 1, arg)
+        if (trim(arg) /= '') then
+          fname = trim(arg)
+        else
+          if (verbose) then
+            write(error_unit,*) "The option '" // trim(opt) //                 &
+                              "' requires an argument! Exiting..."
+          end if
+          status = 112
+          return
         end if
       end if
     end do
-
-! print information about the file from which parameters are read
-!
-    write(*,*)
-    write(*,*) "Reading parameters from '" // trim(fname) // "'."
 
 ! check if the file exists
 !
     inquire(file = fname, exist = info)
 
-! proceed if file exists
-!
     if (info) then
 
 ! obtain the number of parameters stored in the file
 !
-      call get_parameters_number(iret)
+      call get_parameters_number(status)
 
-! check if the number of parameters was obtained successfully
-!
-      if (iret > 0) return
+      if (status > 0) return
 
 ! if the parameter file is empty, print an error and quit the subroutine
 !
       if (nparams <= 0) then
-        write(*,*) "The parameter file '" // trim(fname)                       &
-                                          // "' is empty! Exiting..."
-        iret = 110
+        write(error_unit,*) "The parameter file '" // trim(fname)              &
+                                                   // "' is empty! Exiting..."
+        status = 110
 
         return
       end if
@@ -180,15 +174,13 @@ module parameters
 
 ! get the parameter names and values and copy them to the corresponding arrays
 !
-      call get_parameters(iret)
+      call get_parameters(status)
 
     else
 
-! the parameter file does not exists, so print a warning and exit
-!
-      write(*,*) "The parameter file '" // trim(fname)                         &
-                                        // "' does not exist! Exiting..."
-      iret = 111
+      write(error_unit,*) "The parameter file '" // trim(fname)                &
+                                             // "' does not exist! Exiting..."
+      status = 111
 
     end if
 
@@ -223,20 +215,19 @@ module parameters
 !
 !===============================================================================
 !
-! subroutine GET_PARAMETERS_NUMBER:
-! --------------------------------
+! subroutine GET_PARAMETER_FILE:
+! -----------------------------
 !
-!   Subroutine scans the input file and accounts the number of parameters
-!   stored in it.
+!   Subroutine returns the full path to the parameter file.
 !
 !   Arguments:
 !
-!     iret - the return value; if it is 0 everything went successfully,
-!            otherwise there was a problem;
+!     pfile  - the parameter full file path;
+!     status - the status value, 0 for success;
 !
 !===============================================================================
 !
-  subroutine get_parameters_number(iret)
+  subroutine get_parameter_file(pfile, status)
 
 ! import external procedures
 !
@@ -246,13 +237,67 @@ module parameters
 !
     implicit none
 
-! input and output variables
+! subroutine arguments
 !
-    integer, intent(inout) :: iret
+    character(len=*), intent(out) :: pfile
+    integer         , intent(out) :: status
+
+! local variables
+!
+    character(len=mlen) :: tfile
+
+! local parameters
+!
+    character(len=*), parameter :: loc = 'PARAMETERS::get_parameter_file()'
+!
+!-------------------------------------------------------------------------------
+!
+    status = 0
+    if (len(pfile) <= mlen) then
+      write(pfile,"(a)") trim(adjustl(fname))
+    else
+      write(error_unit,"('[',a,']: ',a)") trim(loc)                            &
+                      , "Parameter file path too long for subroutine argument!"
+      write(tfile,"(a)") trim(adjustl(fname))
+      write(pfile,"(a)") tfile(1:len(pfile))
+      status = 1
+    end if
+
+!-------------------------------------------------------------------------------
+!
+  end subroutine get_parameter_file
+!
+!===============================================================================
+!
+! subroutine GET_PARAMETERS_NUMBER:
+! --------------------------------
+!
+!   Subroutine scans the input file and accounts the number of parameters
+!   stored in it.
+!
+!   Arguments:
+!
+!     status - the status value, 0 for success;
+!
+!===============================================================================
+!
+  subroutine get_parameters_number(status)
+
+! import external procedures
+!
+    use iso_fortran_env, only : error_unit
+
+! local variables are not implicit by default
+!
+    implicit none
+
+! subroutine arguments
+!
+    integer, intent(out) :: status
 
 ! local variable to store the line content
 !
-    character(len=mlen)    :: line
+    character(len=mlen) :: line
 
 ! local parameters
 !
@@ -298,9 +343,9 @@ module parameters
 30  write(error_unit,"('[',a,']: ',a)") trim(loc)                              &
                     , "Cannot open the parameter file '" // trim(fname) // "'!"
 
-! set the return flag
+! set the status flag
 !
-    iret = 112
+    status = 112
 
 !-------------------------------------------------------------------------------
 !
@@ -316,12 +361,11 @@ module parameters
 !
 !   Arguments:
 !
-!     iret - the return value; if it is 0 everything went successfully,
-!            otherwise there was a problem;
+!     status - the status value, 0 for success;
 !
 !===============================================================================
 !
-  subroutine get_parameters(iret)
+  subroutine get_parameters(status)
 
 ! import external procedures
 !
@@ -333,15 +377,15 @@ module parameters
 
 ! subroutine arguments
 !
-    integer, intent(inout) :: iret
+    integer, intent(out) :: status
 
 ! the parameter counter
 !
-    integer                :: np, nl
+    integer :: np, nl
 
 ! local variables to store the line content, the parameter name and value
 !
-    character(len=256)     :: line, name, value
+    character(len=256) :: line, name, value
 
 ! local parameters
 !
@@ -373,11 +417,11 @@ module parameters
 
 ! parse the line to get parameter name and value
 !
-    call parse_line(line, name, value, iret)
+    call parse_line(line, name, value, status)
 
 ! check if the line was parsed successfuly
 !
-    if (iret > 0) then
+    if (status > 0) then
       write(error_unit,"('[',a,']: ',a)") trim(loc)                            &
                       , "Wrong parameter format in '"                          &
                                        // trim(adjustl(fname)) // "'."
@@ -412,9 +456,9 @@ module parameters
 30  write(error_unit,"('[',a,']: ',a)") trim(loc)                              &
                     , "Cannot open the parameter file '" // trim(fname) // "'!"
 
-! set the return flag
+! set the status flag
 !
-    iret = 140
+    status = 140
 
 !-------------------------------------------------------------------------------
 !
@@ -429,13 +473,14 @@ module parameters
 !
 !   Arguments:
 !
-!     line  - the input line containing the parameter information;
-!     name  - the extracted name of the parameter;
-!     value - the extracted value of the parameter;
+!     line   - the input line containing the parameter information;
+!     name   - the extracted name of the parameter;
+!     value  - the extracted value of the parameter;
+!     status - the status value, 0 for success;
 !
 !===============================================================================
 !
-  subroutine parse_line(line, name, value, iret)
+  subroutine parse_line(line, name, value, status)
 
 ! local variables are not implicit by default
 !
@@ -445,17 +490,17 @@ module parameters
 !
     character(len=*), intent(in)    :: line
     character(len=*), intent(inout) :: name, value
-    integer         , intent(out)   :: iret
+    integer         , intent(out)   :: status
 
 ! local indices to store positions in the input line
 !
-    integer :: l, p, c, i, j
+    integer :: l, p, c, i, j = 1
 !
 !-------------------------------------------------------------------------------
 !
-! reset the return flag
+! reset the status flag
 !
-    iret = 0
+    status = 0
 
 ! get the length of line
 !
@@ -501,7 +546,7 @@ module parameters
 
 ! check possible errors in formatting
 !
-    if (p <= 2 .or. len_trim(name) == 0 .or. len_trim(value) == 0) iret = 1
+    if (p <= 2 .or. len_trim(name) == 0 .or. len_trim(value) == 0) status = 1
 
 !-------------------------------------------------------------------------------
 !
@@ -538,7 +583,7 @@ module parameters
 
 ! local parameter counter
 !
-    integer                         :: np
+    integer :: np
 
 ! local parameters
 !
@@ -568,11 +613,10 @@ module parameters
 !
 !===============================================================================
 !
-! subroutine GET_PARAMETER_REAL4:
-! ------------------------------
+! subroutine GET_PARAMETER_REAL:
+! -----------------------------
 !
-!   Subroutine reads a given parameter name and returns its single precision
-!   real value.
+!   Subroutine reads a given parameter name and returns its real value.
 !
 !   Arguments:
 !
@@ -581,7 +625,7 @@ module parameters
 !
 !===============================================================================
 !
-  subroutine get_parameter_real4(name, value)
+  subroutine get_parameter_real(name, value)
 
 ! import external procedures
 !
@@ -594,11 +638,11 @@ module parameters
 ! subroutine arguments
 !
     character(len=*), intent(in)    :: name
-    real(kind=4)    , intent(inout) :: value
+    real(kind=8)    , intent(inout) :: value
 
 ! local parameter counter
 !
-    integer                         :: np
+    integer :: np
 
 ! local parameters
 !
@@ -624,67 +668,7 @@ module parameters
 
 !-------------------------------------------------------------------------------
 !
-  end subroutine get_parameter_real4
-!
-!===============================================================================
-!
-! subroutine GET_PARAMETER_REAL8:
-! ------------------------------
-!
-!   Subroutine reads a given parameter name and returns its double precision
-!   real value.
-!
-!   Arguments:
-!
-!     name  - the input parameter name;
-!     value - the output real value of parameter;
-!
-!===============================================================================
-!
-  subroutine get_parameter_real8(name, value)
-
-! import external procedures
-!
-    use iso_fortran_env, only : error_unit
-
-! local variables are not implicit by default
-!
-    implicit none
-
-! subroutine arguments
-!
-    character(len=*), intent(in)    :: name
-    real(kind=8)    , intent(inout) :: value
-
-! local parameter counter
-!
-    integer                         :: np
-
-! local parameters
-!
-    character(len=*), parameter :: loc = 'PARAMETERS::get_parameter_real8()'
-!
-!-------------------------------------------------------------------------------
-!
-! find the selected parameter
-!
-    np = 1
-    do while (np <= nparams)
-      if (name == pnames(np)) then
-        read(pvalues(np), err = 100, fmt = *) value
-      end if
-      np = np + 1
-    end do
-
-    return
-
-100 write(error_unit,"('[',a,']: ',a)") trim(loc)                              &
-                    , "Wrong format of the parameter '" // trim(name) //       &
-                      "' or the value is too small or too large!"
-
-!-------------------------------------------------------------------------------
-!
-  end subroutine get_parameter_real8
+  end subroutine get_parameter_real
 !
 !===============================================================================
 !
@@ -713,7 +697,7 @@ module parameters
 
 ! local parameter counters
 !
-    integer                         :: np, nl
+    integer :: np, nl
 !
 !-------------------------------------------------------------------------------
 !
