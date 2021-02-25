@@ -124,6 +124,8 @@ module parameters
 !
 !-------------------------------------------------------------------------------
 !
+    status = 0
+
 ! parse the command line to check if a different parameter file has been
 ! provided
 !
