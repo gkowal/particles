@@ -532,7 +532,7 @@ module integrations
 !
     integer                                        , intent(in) :: iord
     integer, dimension(3)                          , intent(in) :: dm
-    real(kind=PREC), dimension(16)                 , intent(in) :: params
+    real(kind=PREC), dimension(:)                  , intent(in) :: params
     real(kind=PREC), dimension(dm(1),dm(2),dm(3),3), intent(in) :: uu, bb
     real(kind=PREC), dimension(6)                  , intent(in) :: si
 
