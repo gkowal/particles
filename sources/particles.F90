@@ -176,10 +176,10 @@ program particles
   select case(trim(ptype))
   case('proton', 'p')
     write(*,"('   particle type =  proton')")
-    qom =   1.0d-04 * e * bunit * tunit / mp
+    qom =   1.0d-04 * e * tunit / mp
   case('electron', 'e')
     write(*,"('   particle type =  electron')")
-    qom = - 1.0d-04 * e * bunit * tunit / me
+    qom = - 1.0d-04 * e * tunit / me
   case default
     write(*,"('   particle type =  unknown')")
   end select
@@ -227,7 +227,7 @@ program particles
 
   call initialize_random()
   call initialize_fitsio()
-  call initialize_fields()
+  call initialize_fields(vunit, bunit)
 
   allocate(counter(3,nparticles))
   allocate(time(nsteps))

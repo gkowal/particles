@@ -48,11 +48,13 @@ module fields
 !
 !===============================================================================
 !
-  subroutine initialize_fields()
+  subroutine initialize_fields(uunit, bunit)
 
     use fitsio, only : get_dimensions, read_field
 
     implicit none
+
+    real(kind=8), intent(in) :: uunit, bunit
 !
 !-------------------------------------------------------------------------------
 !
@@ -67,6 +69,9 @@ module fields
     call read_field('bx', bb(:,:,:,1))
     call read_field('by', bb(:,:,:,2))
     call read_field('bz', bb(:,:,:,3))
+
+    uu = uunit * uu
+    bb = bunit * bb
 
 !-------------------------------------------------------------------------------
 !

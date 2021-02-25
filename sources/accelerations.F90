@@ -81,7 +81,7 @@ module accelerations
     g        = sqrt(dot_product(vec(4:6), vec(4:6)) + 1.0d+00)
     v(1:3)   = vec(4:6) / g
 
-    w(1:3)   = v(1:3) - u(1:3) * vun
+    w(1:3)   = v(1:3) - u(1:3)
 
     acc(1:3) = v(1:3) / vun
     acc(4)   = qom * (w(2) * b(3) - w(3) * b(2))
