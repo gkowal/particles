@@ -65,20 +65,17 @@ program particles
   real(kind=PREC)   :: beta       = 0.00d+00
   real(kind=PREC)   :: temp       = 1.0d+03
   real(kind=PREC)   :: vth        = 1.0d-03
-  real(kind=PREC)   :: valf       = 1.0d-03
-  real(kind=PREC)   :: bfac       = 1.1209982432795858d+01
-  real(kind=PREC)   :: dens       = 1.0d+00
   real(kind=PREC)   :: bunit      = 1.0d+00
+  real(kind=PREC)   :: vunit      = 1.0d+00
   real(kind=PREC)   :: tunit      = 1.0d+00
   real(kind=PREC)   :: lunit      = 1.0d+00
-  real(kind=PREC)   :: lscale     = 1.0d+00
   real(kind=PREC)   :: gamma      = 5.0d+00 / 3.0d+00
   real(kind=PREC)   :: qom        = 9.5788332241480675d+03
 
   character(len=4), dimension(6) :: label = (/ 'posx', 'posy', 'posz',         &
                                                'momx', 'momy', 'momz' /)
 
-  character(len=32) :: fname, stmp
+  character(len=72) :: fname, stmp, sfmt
   integer           :: i, iret
   integer(kind=8)   :: n
   integer(kind=8)   :: t1, t2, dt, count_rate, count_max
@@ -120,9 +117,9 @@ program particles
   call get_parameter_integer("nparticles"   , nparticles)
   call get_parameter_integer("nsteps"       , nsteps    )
   call get_parameter_real   ("bunit"        , bunit     )
+  call get_parameter_real   ("vunit"        , vunit     )
   call get_parameter_real   ("tunit"        , tunit     )
   call get_parameter_real   ("temperature"  , temp      )
-  call get_parameter_real   ('density'      , dens      )
   call get_parameter_real   ("tmin"         , tmin      )
   call get_parameter_real   ("tmax"         , tmax      )
   call get_parameter_real   ("dtini"        , dtini     )
@@ -134,26 +131,43 @@ program particles
   call get_parameter_real   ("safe"         , safe      )
   call get_parameter_real   ("beta"         , beta      )
 
-  valf = 7.2757116026881272d+00 * bunit / sqrt(dens)
-  vth  = sqrt(kb * temp / mp) / c
+  vunit = vunit / c
+  vth   = sqrt(kb * temp / mp) / c
 
   write(*,*)
   write(*,"(' Fields:')")
   select case(trim(simulation))
   case('relativistic', 'rel', 'r', 'srmhd', 'srhd')
-    write(*,"('   simulation    =  relativistic')")
-    lscale = 1.0d+00
+    write(*,"(3x,'simulation         =  relativistic')")
     lunit  = tunit * c
   case default
-    write(*,"('   simulation    =  newtonian')")
-    lscale = 1.0d+00 / valf
-    lunit  = tunit * valf * c
+    write(*,"(3x,'simulation         =  newtonian')")
+    lunit  = tunit * vunit * c
   end select
-  write(*,"('   B unit        = ', 1es22.15, ' [Gs]')"    ) bunit
-  write(*,"('   length unit   = ', 1es22.15, ' [m]')"     ) lunit
-  write(*,"('   length scale  = ', 1es22.15, ' [1/L]')"   ) lscale
-  write(*,"('   density       = ', 1es22.15, ' [mₚ/cm³]')") dens
-  write(*,"('   Alfvén speed  = ', 1es22.15, ' [c]')"     ) valf
+  sfmt = "(3x,'magnetic field , B =',1x,1es13.6,' G')"
+  write(*,sfmt) bunit
+  sfmt = "(3x,'plasma velocity, V =',1x,1es13.6,' m/s =', 1es12.4, ' c')"
+  write(*,sfmt) vunit * c, vunit
+  if (tunit > 3.15576d+06) then
+    sfmt = "(3x,'time unit      , T =',1x,1es13.6,' s   =', 1es12.4, ' yr')"
+    write(*,sfmt) tunit, tunit / 3.15576d+07
+  else if (tunit > 8.64d+04) then
+    sfmt = "(3x,'time unit      , T =',1x,1es13.6,' s   =', 1es12.4, ' d')"
+    write(*,sfmt) tunit, tunit / 8.64d+04
+  else
+    sfmt = "(3x,'time unit      , T =',1x,1es13.6,' s   =', 1es12.4, ' h')"
+    write(*,sfmt) tunit, tunit / 3.6d+03
+  end if
+  if (lunit > 3.085677581467192d+15) then
+    sfmt = "(3x,'length unit    , L =',1x,1es13.6,' m   =', 1es12.4, ' pc')"
+    write(*,sfmt) lunit, lunit / 3.085677581467192d+16
+  else if (lunit > 1.495978707d+10) then
+    sfmt = "(3x,'length unit    , L =',1x,1es13.6,' m   =', 1es12.4, ' au')"
+    write(*,sfmt) lunit, lunit / 1.495978707d+11
+  else
+    sfmt = "(3x,'length unit    , L =',1x,1es13.6,' m   =', 1es12.4, ' R☉')"
+    write(*,sfmt) lunit, lunit / 6.96d+08
+  end if
 
   write(*,*)
   write(*,"(' Particles:')")
@@ -174,7 +188,6 @@ program particles
   write(*,"('   q/m           = ', 1es22.15, ' [1/s]')"   ) qom
   write(*,"('   temperature   = ', 1es22.15, ' [K]')"     ) temp
   write(*,"('   thermal speed = ', 1es22.15, ' [c]')"     ) vth
-  qom = qom * bfac
 
   write(*,*)
   write(*,"(' Methods:')")
@@ -270,7 +283,7 @@ program particles
   write(*,"(' Integrating trajectories...')")
 
   params(1)   = qom
-  params(2)   = valf
+  params(2)   = vunit
   params(3)   = tmax
   params(4)   = dtini
   params(5)   = dtmax
