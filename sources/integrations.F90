@@ -65,7 +65,7 @@ module integrations
 !
     integer                                        , intent(in)    :: m
     integer, dimension(3)                          , intent(in)    :: dm
-    real(kind=PREC), dimension(16)                 , intent(in)    :: params
+    real(kind=PREC), dimension(:)                  , intent(in)    :: params
     real(kind=PREC), dimension(m)                  , intent(in)    :: time
     real(kind=PREC), dimension(dm(1),dm(2),dm(3),3), intent(in)    :: uu, bb
     real(kind=PREC), dimension(8,m)                , intent(inout) :: state
@@ -79,6 +79,7 @@ module integrations
     real(kind=PREC), dimension(6)   :: si, sf, er, sr, ds
     real(kind=PREC), dimension(6)   :: ac
     real(kind=PREC), dimension(6,6) :: s, k
+    real(kind=PREC), dimension(3)   :: xl, xs
 
 ! parameters
 !
@@ -99,16 +100,22 @@ module integrations
 !
 !-------------------------------------------------------------------------------
 !
-    qom  = params(1)
-    vun  = params(2)
-    tmx  = params(3)
-    dti  = params(4)
-    dtm  = params(5)
-    atol = params(6)
-    rtol = params(7)
-    fcmn = params(8)
-    fcmx = params(9)
-    safe = params(10)
+    qom   = params(1)
+    vun   = params(2)
+    tmx   = params(3)
+    dti   = params(4)
+    dtm   = params(5)
+    atol  = params(6)
+    rtol  = params(7)
+    fcmn  = params(8)
+    fcmx  = params(9)
+    safe  = params(10)
+    xl(1) = params(12)
+    xl(2) = params(13)
+    xl(3) = params(14)
+    xs(1) = params(15)
+    xs(2) = params(16)
+    xs(3) = params(17)
 
     cnt        = 0
     t          = 0.0d+00
@@ -126,7 +133,7 @@ module integrations
         do i = 1, j - 1
           s(j,1:6) = s(j,1:6) + b(j-1,i) * k(i,1:6)
         end do
-        call acceleration(qom, vun, dm, uu, bb, s(j,1:6), ac)
+        call acceleration(qom, vun, dm, xl, xs, uu, bb, s(j,1:6), ac)
         k(j,1:6) = dt * ac(1:6)
       end do
 
@@ -146,7 +153,7 @@ module integrations
 
 ! output
 !
-        call acceleration(qom, vun, dm, uu, bb, s(6,1:6), ac)
+        call acceleration(qom, vun, dm, xl, xs, uu, bb, s(6,1:6), ac)
         k(6,1:6) = dt * ac(1:6)
         do while (t >= time(n) .and. n <= m)
           fr = (t - time(n)) / dt
@@ -225,7 +232,7 @@ module integrations
 !
     integer                                        , intent(in)    :: m
     integer, dimension(3)                          , intent(in)    :: dm
-    real(kind=PREC), dimension(16)                 , intent(in)    :: params
+    real(kind=PREC), dimension(:)                  , intent(in)    :: params
     real(kind=PREC), dimension(m)                  , intent(in)    :: time
     real(kind=PREC), dimension(dm(1),dm(2),dm(3),3), intent(in)    :: uu, bb
     real(kind=PREC), dimension(8,m)                , intent(inout) :: state
@@ -241,6 +248,7 @@ module integrations
     real(kind=PREC)                  :: fl, fr
     real(kind=PREC), dimension(6)    :: si, ss, sf, er, sr, ds
     real(kind=PREC), dimension(10,6) :: k
+    real(kind=PREC), dimension(3)    :: xl, xs
 
 ! parameters
 !
@@ -319,17 +327,23 @@ module integrations
 !
 !-------------------------------------------------------------------------------
 !
-    qom  = params(1)
-    vun  = params(2)
-    tmx  = params(3)
-    dti  = params(4)
-    dtm  = params(5)
-    atol = params(6)
-    rtol = params(7)
-    fcmn = params(8)
-    fcmx = params(9)
-    safe = params(10)
-    beta = params(11)
+    qom   = params(1)
+    vun   = params(2)
+    tmx   = params(3)
+    dti   = params(4)
+    dtm   = params(5)
+    atol  = params(6)
+    rtol  = params(7)
+    fcmn  = params(8)
+    fcmx  = params(9)
+    safe  = params(10)
+    beta  = params(11)
+    xl(1) = params(12)
+    xl(2) = params(13)
+    xl(3) = params(14)
+    xs(1) = params(15)
+    xs(2) = params(16)
+    xs(3) = params(17)
 
     expo       = 2.0d-01 * beta - 1.25d-01
     errold     = 1.0d-04
@@ -349,57 +363,57 @@ module integrations
 ! the 12 steps
 !
       ss(1:6)  = si(1:6)
-      call acceleration(qom, vun, dm, uu, bb, ss, k(1,1:6))
+      call acceleration(qom, vun, dm, xl, xs, uu, bb, ss, k(1,1:6))
 
       ss(1:6)  = si(1:6) + dt * a0201 * k(1,1:6)
-      call acceleration(qom, vun, dm, uu, bb, ss, k(2,1:6))
+      call acceleration(qom, vun, dm, xl, xs, uu, bb, ss, k(2,1:6))
 
       ss(1:6)  = si(1:6) + dt * (a0301 * k(1,1:6) + a0302 * k(2,1:6))
-      call acceleration(qom, vun, dm, uu, bb, ss, k(3,1:6))
+      call acceleration(qom, vun, dm, xl, xs, uu, bb, ss, k(3,1:6))
 
       ss(1:6)  = si(1:6) + dt * (a0401 * k(1,1:6) + a0403 * k(3,1:6))
-      call acceleration(qom, vun, dm, uu, bb, ss, k(4,1:6))
+      call acceleration(qom, vun, dm, xl, xs, uu, bb, ss, k(4,1:6))
 
       ss(1:6)  = si(1:6) + dt * (a0501 * k(1,1:6) + a0503 * k(3,1:6)           &
                                + a0504 * k(4,1:6))
-      call acceleration(qom, vun, dm, uu, bb, ss, k(5,1:6))
+      call acceleration(qom, vun, dm, xl, xs, uu, bb, ss, k(5,1:6))
 
       ss(1:6)  = si(1:6) + dt * (a0601 * k(1,1:6) + a0604 * k(4,1:6)           &
                                + a0605 * k(5,1:6))
-      call acceleration(qom, vun, dm, uu, bb, ss, k(6,1:6))
+      call acceleration(qom, vun, dm, xl, xs, uu, bb, ss, k(6,1:6))
 
       ss(1:6)  = si(1:6) + dt * (a0701 * k(1,1:6) + a0704 * k(4,1:6)           &
                                + a0705 * k(5,1:6) + a0706 * k(6,1:6))
-      call acceleration(qom, vun, dm, uu, bb, ss, k(7,1:6))
+      call acceleration(qom, vun, dm, xl, xs, uu, bb, ss, k(7,1:6))
 
       ss(1:6)  = si(1:6) + dt * (a0801 * k(1,1:6) + a0804 * k(4,1:6)           &
                                + a0805 * k(5,1:6) + a0806 * k(6,1:6)           &
                                + a0807 * k(7,1:6))
-      call acceleration(qom, vun, dm, uu, bb, ss, k(8,1:6))
+      call acceleration(qom, vun, dm, xl, xs, uu, bb, ss, k(8,1:6))
 
       ss(1:6)  = si(1:6) + dt * (a0901 * k(1,1:6) + a0904 * k(4,1:6)           &
                                + a0905 * k(5,1:6) + a0906 * k(6,1:6)           &
                                + a0907 * k(7,1:6) + a0908 * k(8,1:6))
-      call acceleration(qom, vun, dm, uu, bb, ss, k(9,1:6))
+      call acceleration(qom, vun, dm, xl, xs, uu, bb, ss, k(9,1:6))
 
       ss(1:6)  = si(1:6) + dt * (a1001 * k(1,1:6) + a1004 * k(4,1:6)           &
                                + a1005 * k(5,1:6) + a1006 * k(6,1:6)           &
                                + a1007 * k(7,1:6) + a1008 * k(8,1:6)           &
                                + a1009 * k(9,1:6))
-      call acceleration(qom, vun, dm, uu, bb, ss, k(10,1:6))
+      call acceleration(qom, vun, dm, xl, xs, uu, bb, ss, k(10,1:6))
 
       ss(1:6)  = si(1:6) + dt * (a1101 * k(1,1:6) + a1104 * k(4,1:6)           &
                                + a1105 * k(5,1:6) + a1106 * k(6,1:6)           &
                                + a1107 * k(7,1:6) + a1108 * k(8,1:6)           &
                                + a1109 * k(9,1:6) + a1110 * k(10,1:6))
-      call acceleration(qom, vun, dm, uu, bb, ss, k(2,1:6))
+      call acceleration(qom, vun, dm, xl, xs, uu, bb, ss, k(2,1:6))
 
       ss(1:6)  = si(1:6) + dt * (a1201 * k(1,1:6) + a1204 * k(4,1:6)           &
                                + a1205 * k(5,1:6) + a1206 * k(6,1:6)           &
                                + a1207 * k(7,1:6) + a1208 * k(8,1:6)           &
                                + a1209 * k(9,1:6) + a1210 * k(10,1:6)          &
                                + a1211 * k(2,1:6))
-      call acceleration(qom, vun, dm, uu, bb, ss, k(3,1:6))
+      call acceleration(qom, vun, dm, xl, xs, uu, bb, ss, k(3,1:6))
 
       k(4,1:6) = b01 * k( 1,1:6) + b06 * k( 6,1:6) + b07 * k( 7,1:6)           &
                + b08 * k( 8,1:6) + b09 * k( 9,1:6) + b10 * k(10,1:6)           &
@@ -428,8 +442,8 @@ module integrations
 
 ! output
 !
-        call acceleration(qom, vun, dm, uu, bb, si(1:6), k(1,1:6))
-        call acceleration(qom, vun, dm, uu, bb, sf(1:6), k(2,1:6))
+        call acceleration(qom, vun, dm, xl, xs, uu, bb, si(1:6), k(1,1:6))
+        call acceleration(qom, vun, dm, xl, xs, uu, bb, sf(1:6), k(2,1:6))
         do while (t >= time(n) .and. n <= m)
           fr = (t - time(n)) / dt
           fl = 1.0d+00 - fr
@@ -527,19 +541,26 @@ module integrations
     real(kind=PREC)                  :: qom, vun, dti, dtf, dtm, atol, rtol
     real(kind=PREC)                  :: d0, d1, d2
     real(kind=PREC), dimension(6)    :: sr, sf, ki, kf
+    real(kind=PREC), dimension(3)    :: xl, xs
 
 ! parameters
 !
 !
 !-------------------------------------------------------------------------------
 !
-    qom  = params(1)
-    vun  = params(2)
-    dtm  = params(5)
-    atol = params(6)
-    rtol = params(7)
+    qom   = params(1)
+    vun   = params(2)
+    dtm   = params(5)
+    atol  = params(6)
+    rtol  = params(7)
+    xl(1) = params(12)
+    xl(2) = params(13)
+    xl(3) = params(14)
+    xs(1) = params(15)
+    xs(2) = params(16)
+    xs(3) = params(17)
 
-    call acceleration(qom, vun, dm, uu, bb, si(1:6), ki(1:6))
+    call acceleration(qom, vun, dm, xl, xs, uu, bb, si(1:6), ki(1:6))
 
     sr(1:6) = atol + rtol * abs(si(1:6))
 
@@ -552,7 +573,7 @@ module integrations
     end if
 
     sf(1:6) = si(1:6) + dti * ki(1:6)
-    call acceleration(qom, vun, dm, uu, bb, sf(1:6), kf(1:6))
+    call acceleration(qom, vun, dm, xl, xs, uu, bb, sf(1:6), kf(1:6))
     d2  = max(d1, sqrt(sum(((sf(1:6) - si(1:6)) / sr(1:6))**2) / 6.0d+00) / dti)
     if (d2 <= 1.0d-15) then
       dtf = max(1.0d-06, 1.0d-03 * dti)

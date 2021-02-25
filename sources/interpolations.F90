@@ -44,13 +44,15 @@ module interpolations
 !   Arguments:
 !
 !     dm     - dimensions of the interpolated fields uu and bb (input);
+!     xl     - the lower bounds of the domain (input);
+!     xs     - the domain size (input);
 !     uu, bb - the arrays of velocity and magnetic fields (input);
 !     pos    - the interpolation position step (input);
 !     u , b  - the interpolated fields (output);
 !
 !===============================================================================
 !
-  subroutine interpolate_near(dm, uu, bb, pos, u, b)
+  subroutine interpolate_near(dm, xl, xs, uu, bb, pos, u, b)
 
     implicit none
     !$acc routine (interpolate_near) seq
@@ -58,17 +60,20 @@ module interpolations
 ! subroutine arguments
 !
     integer        , dimension(3)                  , intent(in)  :: dm
+    real(kind=PREC), dimension(3)                  , intent(in)  :: xl, xs
     real(kind=PREC), dimension(dm(1),dm(2),dm(3),3), intent(in)  :: uu, bb
     real(kind=PREC), dimension(3)                  , intent(in)  :: pos
     real(kind=PREC), dimension(3)                  , intent(out) :: u, b
 
 ! local variables
 !
-    integer, dimension(3) :: p
+    integer        , dimension(3) :: p
+    real(kind=PREC), dimension(3) :: x
 !
 !-------------------------------------------------------------------------------
 !
-    p      = floor(dm(1:3) * (pos(1:3) - floor(pos(1:3)))) + 1
+    x(:)   = (pos(:) - xl(:)) / xs(:)
+    p      = floor(dm(1:3) * (x(1:3) - floor(x(1:3)))) + 1
 
     u(1:3) = uu(p(1),p(2),p(3),1:3)
     b(1:3) = bb(p(1),p(2),p(3),1:3)
@@ -88,13 +93,15 @@ module interpolations
 !   Arguments:
 !
 !     dm     - dimensions of the interpolated fields uu and bb (input);
+!     xl     - the lower bounds of the domain (input);
+!     xs     - the domain size (input);
 !     uu, bb - the arrays of velocity and magnetic fields (input);
 !     pos    - the interpolation position step (input);
 !     u , b  - the interpolated fields (output);
 !
 !===============================================================================
 !
-  subroutine interpolate_lin(dm, uu, bb, pos, u, b)
+  subroutine interpolate_lin(dm, xl, xs, uu, bb, pos, u, b)
 
     implicit none
     !$acc routine (interpolate_lin) seq
@@ -102,6 +109,7 @@ module interpolations
 ! subroutine arguments
 !
     integer        , dimension(3)                  , intent(in)  :: dm
+    real(kind=PREC), dimension(3)                  , intent(in)  :: xl, xs
     real(kind=PREC), dimension(dm(1),dm(2),dm(3),3), intent(in)  :: uu, bb
     real(kind=PREC), dimension(3)                  , intent(in)  :: pos
     real(kind=PREC), dimension(3)                  , intent(out) :: u, b
@@ -109,8 +117,9 @@ module interpolations
 ! local variables
 !
 !     integer                           :: m
-    integer        , dimension(3)     :: pl, pr, l, r
-    real(kind=PREC), dimension(3)     :: xp, xd, xu
+    integer        , dimension(3) :: pl, pr, l, r
+    real(kind=PREC), dimension(3) :: xp, xd, xu
+    real(kind=PREC), dimension(3) :: x
 !     real(kind=PREC), dimension(2,2,6) :: t2
 !     real(kind=PREC), dimension(2,6)   :: t1
 
@@ -128,11 +137,12 @@ module interpolations
 !
 !-------------------------------------------------------------------------------
 !
-    xd = pos(1:3) + 1.0d+00 / dm(1:3)
+    x(:) = (pos(:) - xl(:)) / xs(:)
+    xd = x(1:3) + 1.0d+00 / dm(1:3)
     xp = dm(1:3) * ( xd(1:3) - floor( xd(1:3)))
     r  = floor(xp) + 1
 
-    xp = dm(1:3) * (pos(1:3) - floor(pos(1:3)))
+    xp = dm(1:3) * (x(1:3) - floor(x(1:3)))
     pl = floor(xp)
     xd = xp - pl
     xu = 1.0d+00 - xd

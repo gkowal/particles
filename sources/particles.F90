@@ -71,6 +71,18 @@ program particles
   real(kind=PREC)   :: lunit      = 1.0d+00
   real(kind=PREC)   :: gamma      = 5.0d+00 / 3.0d+00
   real(kind=PREC)   :: qom        = 9.5788332241480675d+03
+  real(kind=PREC)   :: xmin       = 0.0d+00
+  real(kind=PREC)   :: ymin       = 0.0d+00
+  real(kind=PREC)   :: zmin       = 0.0d+00
+  real(kind=PREC)   :: xmax       = 1.0d+00
+  real(kind=PREC)   :: ymax       = 1.0d+00
+  real(kind=PREC)   :: zmax       = 1.0d+00
+  real(kind=PREC)   :: xmin_domain = 0.0d+00
+  real(kind=PREC)   :: ymin_domain = 0.0d+00
+  real(kind=PREC)   :: zmin_domain = 0.0d+00
+  real(kind=PREC)   :: xmax_domain = 1.0d+00
+  real(kind=PREC)   :: ymax_domain = 1.0d+00
+  real(kind=PREC)   :: zmax_domain = 1.0d+00
 
   character(len=4), dimension(6) :: label = (/ 'posx', 'posy', 'posz',         &
                                                'momx', 'momy', 'momz' /)
@@ -81,8 +93,8 @@ program particles
   integer(kind=8)   :: t1, t2, dt, count_rate, count_max
   real              :: secs
   real(kind=PREC)   :: ltmn, ltmx
-  real(kind=PREC), dimension(16)                 :: params
-  real(kind=PREC), dimension(4)                  :: moms
+  real(kind=PREC), dimension(32) :: params
+  real(kind=PREC), dimension(4)  :: moms
 
 ! OpenMP variables
 !
@@ -130,6 +142,24 @@ program particles
   call get_parameter_real   ("facmax"       , facmax    )
   call get_parameter_real   ("safe"         , safe      )
   call get_parameter_real   ("beta"         , beta      )
+  call get_parameter_real   ("xmin"         , xmin      )
+  call get_parameter_real   ("ymin"         , ymin      )
+  call get_parameter_real   ("zmin"         , zmin      )
+  call get_parameter_real   ("xmax"         , xmax      )
+  call get_parameter_real   ("ymax"         , ymax      )
+  call get_parameter_real   ("zmax"         , zmax_domain)
+  call get_parameter_real   ("xmin_domain"  , xmin_domain)
+  call get_parameter_real   ("ymin_domain"  , ymin_domain)
+  call get_parameter_real   ("zmin_domain"  , zmin_domain)
+  call get_parameter_real   ("xmax_domain"  , xmax_domain)
+  call get_parameter_real   ("ymax_domain"  , ymax_domain)
+  call get_parameter_real   ("zmax_domain"  , zmax_domain)
+  xmin = max(xmin, xmin_domain)
+  ymin = max(ymin, ymin_domain)
+  zmin = max(zmin, zmin_domain)
+  xmax = min(xmax, xmax_domain)
+  ymax = min(ymax, ymax_domain)
+  zmax = min(zmax, zmax_domain)
 
   vunit = vunit / c
   vth   = sqrt(kb * temp / mp) / c
@@ -261,6 +291,9 @@ program particles
 !
   call system_clock(t1)
   call uniform(1.0d+00, state(1:3,1,1:nparticles))
+  state(1,1,1:nparticles) = (xmax - xmin) * state(1,1,1:nparticles) + xmin
+  state(2,1,1:nparticles) = (ymax - ymin) * state(2,1,1:nparticles) + ymin
+  state(3,1,1:nparticles) = (zmax - zmin) * state(3,1,1:nparticles) + zmin
   call normal(0.0d+00, vth, state(4:6,1,1:nparticles))
   call system_clock(t2)
   dt = t2 - t1
@@ -293,6 +326,12 @@ program particles
   params(9)   = facmax
   params(10)  = safe
   params(11)  = beta
+  params(12)  = xmin_domain
+  params(13)  = ymin_domain
+  params(14)  = zmin_domain
+  params(15)  = xmax_domain - xmin_domain
+  params(16)  = ymax_domain - ymin_domain
+  params(17)  = zmax_domain - zmin_domain
 
   call system_clock(t1)
 

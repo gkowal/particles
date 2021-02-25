@@ -48,13 +48,15 @@ module accelerations
 !              particle speed back to plasma velocity units (input);
 !     qom    - the charge over mass coefficient (input);
 !     dm     - dimensions of the field components uu and bb (input);
+!     xl     - the lower bounds of the domain (input);
+!     xs     - the domain size (input);
 !     uu, bb - the arrays of velocity and magnetic fields (input);
 !     vec    - particle state vector, ie. position and velocity (input);
 !     acc    - the velocity and acceleration vector (output);
 !
 !===============================================================================
 !
-  subroutine acceleration(qom, vun, dm, uu, bb, vec, acc)
+  subroutine acceleration(qom, vun, dm, xl, xs, uu, bb, vec, acc)
 
     use interpolations, only : interpolate_near, interpolate_lin
 
@@ -65,6 +67,7 @@ module accelerations
 !
     real(kind=PREC)                                , intent(in)  :: qom, vun
     integer        , dimension(3)                  , intent(in)  :: dm
+    real(kind=PREC), dimension(3)                  , intent(in)  :: xl, xs
     real(kind=PREC), dimension(dm(1),dm(2),dm(3),3), intent(in)  :: uu, bb
     real(kind=PREC), dimension(6)                  , intent(in)  :: vec
     real(kind=PREC), dimension(6)                  , intent(out) :: acc
@@ -76,7 +79,7 @@ module accelerations
 !
 !-------------------------------------------------------------------------------
 !
-    call interpolate_lin(dm(:), uu(:,:,:,:), bb(:,:,:,:), vec(1:3), u(:), b(:))
+    call interpolate_lin(dm(:), xl(:), xs(:), uu(:,:,:,:), bb(:,:,:,:), vec(1:3), u(:), b(:))
 
     g        = sqrt(dot_product(vec(4:6), vec(4:6)) + 1.0d+00)
     v(1:3)   = vec(4:6) / g
