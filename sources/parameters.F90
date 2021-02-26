@@ -640,7 +640,7 @@ module parameters
 ! subroutine arguments
 !
     character(len=*), intent(in)    :: name
-    real(kind=8)    , intent(inout) :: value
+    real(kind=PREC) , intent(inout) :: value
 
 ! local parameter counter
 !

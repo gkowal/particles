@@ -54,7 +54,7 @@ module fields
 
     implicit none
 
-    real(kind=8), intent(in) :: uunit, bunit
+    real(kind=PREC), intent(in) :: uunit, bunit
 !
 !-------------------------------------------------------------------------------
 !

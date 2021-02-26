@@ -272,8 +272,8 @@ program particles
       time(n) = (tmax * (n - 1)) / (nsteps - 1)
     end do
   case('log', 'logarithmic', 'log10')
-    ltmn = dlog10(tmin)
-    ltmx = dlog10(tmax)
+    ltmn = log10(tmin)
+    ltmx = log10(tmax)
     do n = 2, nsteps
       time(n) = 1.0d+01**(((nsteps - n) * ltmn + (n - 2) * ltmx) / (nsteps - 2))
     end do
@@ -289,11 +289,11 @@ program particles
 ! generate initial positions and velocity components
 !
   call system_clock(t1)
-  call uniform(1.0d+00, state(1:3,1,1:nparticles))
+  call uniform(real(1.0, kind=PREC), state(1:3,1,1:nparticles))
   state(1,1,1:nparticles) = (xmax - xmin) * state(1,1,1:nparticles) + xmin
   state(2,1,1:nparticles) = (ymax - ymin) * state(2,1,1:nparticles) + ymin
   state(3,1,1:nparticles) = (zmax - zmin) * state(3,1,1:nparticles) + zmin
-  call normal(0.0d+00, vth, state(4:6,1,1:nparticles))
+  call normal(real(0.0, kind=PREC), vth, state(4:6,1,1:nparticles))
   call system_clock(t2)
   dt = t2 - t1
   secs = real(dt) / real(count_rate)
